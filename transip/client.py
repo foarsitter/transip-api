@@ -4,6 +4,7 @@ The Client class, handling direct communication with the API
 
 from __future__ import print_function
 import base64
+
 import time
 import uuid
 import os
@@ -25,7 +26,6 @@ try:
     import suds_requests
 except ImportError:
     suds_requests = None
-
 
 URI_TEMPLATE = 'https://{}/wsdl/?service={}'
 
@@ -60,16 +60,17 @@ class Client(object):
         """ Uses the decrypted private key to sign the message. """
         if os.path.exists(self.private_key_file):
             with open(self.private_key_file) as private_key:
+
                 keydata = private_key.read()
                 privkey = rsa.PrivateKey.load_pkcs1(keydata)
+
                 signature = rsa.sign(message.encode('utf-8'), privkey, 'SHA-512')
                 signature = base64.b64encode(signature)
                 signature = quote_plus(signature)
 
             return signature
         else:
-            print('The private key does not exist.')
-            raise RuntimeError()
+            raise RuntimeError('The private key does not exist.')
 
     def _build_signature_message(self, service_name, method_name,
                                  timestamp, nonce, additional=None):
@@ -87,7 +88,12 @@ class Client(object):
                 for entryindex, entryvalue in enumerate(value):
                     if isinstance(entryvalue, SudsObject):
                         for objectkey, objectvalue in entryvalue:
-                            sign[str(index)+'['+str(entryindex)+']['+objectkey+']'] = objectvalue
+                            sign[str(index) + '[' + str(entryindex) + '][' + objectkey + ']'] = objectvalue
+            elif isinstance(value, SudsObject):
+                for entryindex, entryvalue in value:
+                    key = str(index) + '[' + str(entryindex) + ']'
+                    value = entryvalue
+                    sign[key] = value
             else:
                 sign[index] = value
         sign['__method'] = method_name
@@ -106,10 +112,10 @@ class Client(object):
         """ Updates the cookie for the upcoming call to the API. """
         temp = []
         for k, val in cookies.items():
-            temp.append("%s=%s"%(k, val))
+            temp.append("%s=%s" % (k, val))
 
         cookiestring = ';'.join(temp)
-        self.soap_client.set_options(headers={'Cookie' : cookiestring})
+        self.soap_client.set_options(headers={'Cookie': cookiestring})
 
     def build_cookie(self, method, mode, parameters=None):
         """
@@ -122,17 +128,32 @@ class Client(object):
         timestamp = int(time.time())
         nonce = str(uuid.uuid4())[:32]
 
-        signature = self._sign(self._build_signature_message(
-            service_name=self.service_name, method_name=method,
-            timestamp=timestamp, nonce=nonce, additional=parameters))
+        signature = self._build_signature_message(
+            service_name=self.service_name,
+            method_name=method,
+            timestamp=timestamp,
+            nonce=nonce,
+            additional=parameters
+        )
+
+        signed_signature = self._sign(signature)
 
         cookies = {
-            "nonce"         : nonce,
-            "timestamp"     : timestamp,
-            "mode"          : mode,
-            "clientVersion" : __version__,
-            "login"         : self.login,
-            "signature"     : signature
+            "nonce": nonce,
+            "timestamp": timestamp,
+            "mode": mode,
+            "clientVersion": __version__,
+            "login": self.login,
+            "signature": signed_signature
         }
 
         return cookies
+
+    def _simple_request(self, method, *args, **kwargs):
+        """
+        Helper method to create a request in a DRY way
+        """
+        cookie = self.build_cookie(mode=kwargs.get('mode', MODE_RO), method=method, parameters=args)
+        self.update_cookie(cookie)
+
+        return getattr(self.soap_client.service, method)(*args)
