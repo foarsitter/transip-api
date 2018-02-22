@@ -3,11 +3,11 @@ The Client class, handling direct communication with the API
 """
 
 from __future__ import print_function
-import base64
 
+import base64
+import os
 import time
 import uuid
-import os
 from collections import OrderedDict
 
 import rsa
