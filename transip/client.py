@@ -33,6 +33,22 @@ MODE_RO = 'readonly'
 MODE_RW = 'readwrite'
 
 
+def convert_value(value):
+    """
+    None and boolean values are not accepted by the Transip API.
+    This method converts
+        - None and False to an empty string,
+        - True to 1
+    """
+    if isinstance(value, bool):
+        return 1 if value else ''
+
+    if not value:
+        return ''
+
+    return value
+
+
 class Client(object):
     """
     A client-base class, for other classes to base their service implementation
@@ -88,14 +104,14 @@ class Client(object):
                 for entryindex, entryvalue in enumerate(value):
                     if isinstance(entryvalue, SudsObject):
                         for objectkey, objectvalue in entryvalue:
+                            objectvalue = convert_value(objectvalue)
                             sign[str(index) + '[' + str(entryindex) + '][' + objectkey + ']'] = objectvalue
             elif isinstance(value, SudsObject):
                 for entryindex, entryvalue in value:
                     key = str(index) + '[' + str(entryindex) + ']'
-                    value = entryvalue
-                    sign[key] = value
+                    sign[key] = convert_value(entryvalue)
             else:
-                sign[index] = value
+                sign[index] = convert_value(value)
         sign['__method'] = method_name
         sign['__service'] = service_name
         sign['__hostname'] = self.endpoint
