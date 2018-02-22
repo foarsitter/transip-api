@@ -128,7 +128,7 @@ class Client(object):
         timestamp = int(time.time())
         nonce = str(uuid.uuid4())[:32]
 
-        signature = self._build_signature_message(
+        message_to_sign = self._build_signature_message(
             service_name=self.service_name,
             method_name=method,
             timestamp=timestamp,
@@ -136,7 +136,7 @@ class Client(object):
             additional=parameters
         )
 
-        signed_signature = self._sign(signature)
+        signed_signature = self._sign(message_to_sign)
 
         cookies = {
             "nonce": nonce,
