@@ -152,7 +152,7 @@ class Client(object):
             additional=parameters
         )
 
-        signed_signature = self._sign(message_to_sign)
+        signature = self._sign(message_to_sign)
 
         cookies = {
             "nonce": nonce,
@@ -160,7 +160,7 @@ class Client(object):
             "mode": mode,
             "clientVersion": __version__,
             "login": self.login,
-            "signature": signed_signature
+            "signature": signature
         }
 
         return cookies
